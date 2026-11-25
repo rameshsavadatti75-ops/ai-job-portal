@@ -15,7 +15,7 @@ INDIA_KEYWORDS = {
     "chennai", "mumbai", "delhi", "ncr", "bengaluru", "bangalore",
     "mangaluru", "mysuru", "kolkata", "ahmedabad", "noida", "gurugram",
     "gurgaon", "kochi", "coimbatore", "jaipur", "indore", "bhubaneswar"
-} + KARNATAKA_KEYWORDS
+} | KARNATAKA_KEYWORDS
 
 
 CURATED_INDIA_KARNATAKA_JOBS = [
