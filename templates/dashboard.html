@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li class="active"><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">📄 My Resume</a></li>
+            <li><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+        <div class="sidebar-footer-card">
+            <p style="font-weight: 600; margin-bottom: 3px;">Your Career Our Support</p>
+            <p style="font-size: 11px; color: #cbd5e1; margin-bottom: 8px;">Get guidance & resources</p>
+            <a href="{{ url_for('jobs.find_jobs') }}" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 11.5px; padding: 7px; background: white; color: #1e3a8a;">Explore Jobs &rarr;</a>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Student Career & Placement Support</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>BCA - 6th Semester Student</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>Welcome, {{ full_name }} 👋</h1>
+                    <p>Upload your resume to extract skills, analyze gaps, and get matched with live roles.</p>
+                    <div class="hero-actions">
+                        <a href="{{ url_for('resume.upload_resume') }}" class="btn btn-primary" style="background: white; color: #0b1f3f;">📁 Upload Resume</a>
+                        <a href="{{ url_for('jobs.find_jobs') }}" class="btn btn-outline">💼 Find Jobs</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ recommended_count }}</h3>
+                        <p>Recommended Jobs</p>
+                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Live matched roles</small>
+                    </div>
+                    <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">💼</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ applied_count }}</h3>
+                        <p>Applied Jobs</p>
+                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Tracked in SQLite</small>
+                    </div>
+                    <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;">🚀</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ saved_count }}</h3>
+                        <p>Saved Jobs</p>
+                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Bookmarked roles</small>
+                    </div>
+                    <div class="stat-icon" style="background: #fef2f2; color: #dc2626;">❤️</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <h3>{{ best_match_score }}%</h3>
+                        <p>Best Match Score</p>
+                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Skill alignment</small>
+                    </div>
+                    <div class="stat-icon" style="background: #fffbeb; color: #d97706;">⚡</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; margin-bottom: 20px;">
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header" style="margin-bottom: 10px;">
+                        <h3 style="font-size: 15px;">My Resume</h3>
+                        <a href="{{ url_for('resume.upload_resume') }}" style="font-size: 11.5px; color: #2563eb; text-decoration: none; font-weight: 600;">Update</a>
+                    </div>
+                    {% if resume_filename %}
+                        <div style="background: #f8fafc; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                            <div style="background: #fee2e2; color: #dc2626; padding: 8px; border-radius: 6px; font-weight: bold; font-size: 11px;">FILE</div>
+                            <div style="overflow: hidden;">
+                                <h4 style="font-size: 13px; color: #0b1f3f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ resume_filename }}</h4>
+                                <small style="color: #64748b; font-size: 11px;">Uploaded on {{ upload_date }}</small>
+                            </div>
+                            <span style="margin-left: auto; background: #dcfce7; color: #16a34a; font-size: 10.5px; padding: 2px 6px; border-radius: 20px; font-weight: 600;">Processed</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748b; text-align: center;">
+                            <div>✅ Text Extracted</div>
+                            <div>✅ Skills Identified</div>
+                            <div>✅ Ready</div>
+                        </div>
+                    {% else %}
+                        <div style="text-align: center; padding: 15px 0;">
+                            <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">No resume uploaded yet.</p>
+                            <a href="{{ url_for('resume.upload_resume') }}" class="btn btn-primary" style="font-size: 11.5px; padding: 6px 12px;">Upload Now &rarr;</a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header" style="margin-bottom: 10px;">
+                        <h3 style="font-size: 15px;">Extracted Skills</h3>
+                        <a href="{{ url_for('resume.upload_resume') }}" style="font-size: 11.5px; color: #2563eb; text-decoration: none; font-weight: 600;">Edit</a>
+                    </div>
+                    <div>
+                        {% if skills_list %}
+                            {% for skill in skills_list %}
+                                <span class="skill-badge" style="font-size: 11.5px; padding: 3px 9px;">{{ skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <p style="font-size: 12px; color: #64748b; text-align: center; padding: 12px 0;">Upload your resume to extract skills automatically.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header" style="margin-bottom: 8px;">
+                        <h3 style="font-size: 15px;">Resume Strength</h3>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="strength-ring" data-score="{{ strength_score | default(20) }}" style="position: relative; width: 64px; height: 64px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                            <div style="width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; color: #0b1f3f;">{{ strength_score | default(20) }}%</div>
+                        </div>
+                        <ul style="list-style: none; font-size: 11px; color: #475569; line-height: 1.5;">
+                            {% for tip in strength_tips %}
+                                <li>✅ {{ tip }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 18px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Top Recommended Jobs</h3>
+                        <a href="{{ url_for('jobs.find_jobs') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">View All Jobs &rarr;</a>
+                    </div>
+                    <div>
+                        {% for job in top_jobs %}
+                            <div class="job-item">
+                                <div class="job-details">
+                                    <h4>{{ job.title }}</h4>
+                                    <p>{{ job.company }} • {{ job.location }} • {{ job.job_type }}</p>
+                                    <div style="margin-top: 5px;">
+                                        {% for skill in job.skills[:4] %}
+                                            <span class="skill-badge" style="font-size: 10.5px; padding: 2px 6px;">{{ skill }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span class="match-badge" style="display: block; margin-bottom: 6px;">{{ job.match_score }}% Match</span>
+                                    <a href="{{ url_for('jobs.find_jobs', q=job.title) }}" class="btn btn-primary" style="padding: 5px 12px; font-size: 11.5px;">View & Apply</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Activity</h3>
+                        </div>
+                        <ul style="list-style: none; font-size: 12px; color: #475569; line-height: 2.2;">
+                            <li>📄 <b>Resume status</b><br><small style="color: #64748b;">{{ resume_filename if resume_filename else 'No resume uploaded yet' }}</small></li>
+                            <li>🤖 <b>Best job match</b><br><small style="color: #64748b;">{{ best_match_score }}% alignment</small></li>
+                            <li>🚀 <b>Tracked actions</b><br><small style="color: #64748b;">{{ applied_count }} applied • {{ saved_count }} saved</small></li>
+                        </ul>
+                    </div>
+
+                    <div class="card" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #bfdbfe;">
+                        <h3 style="font-size: 14px; color: #1e3a8a; margin-bottom: 5px;">Get Career Guidance</h3>
+                        <p style="font-size: 11.5px; color: #1e40af; margin-bottom: 10px;">Explore resume tips and placement resources.</p>
+                        <a href="{{ url_for('profile.career_resources') }}" class="btn btn-primary" style="font-size: 11.5px; padding: 7px 12px;">Career Resources &rarr;</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const ring = document.querySelector(".strength-ring");
+        if (ring) {
+            const pct = Math.max(0, Math.min(100, Number(ring.dataset.score) || 0));
+            ring.style.background = `conic-gradient(#16a34a 0% ${pct}%, #e2e8f0 ${pct}% 100%)`;
+        }
+    })();
+    </script>
+</body>
+</html>

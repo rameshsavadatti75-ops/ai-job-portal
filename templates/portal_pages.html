@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ page_title }} - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('dashboard') }}">📄 My Resume</a></li>
+            <li><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li class="{% if page_type == 'profile' %}active{% endif %}"><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li class="{% if page_type == 'resources' %}active{% endif %}"><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li class="{% if page_type == 'settings' %}active{% endif %}"><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li class="{% if page_type == 'help' %}active{% endif %}"><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Student Career & Placement Support</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>BCA - 6th Semester Student</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>{{ page_title }}</h1>
+                    <p>Alva's College Employability & Placement Support Portal.</p>
+                </div>
+            </div>
+
+            {% if page_type == 'profile' %}
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Student Account Details</h3>
+                        <a href="{{ url_for('profile.settings') }}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">Edit Profile</a>
+                    </div>
+                    <p style="font-size: 14px; margin-bottom: 8px;"><strong>Full Name:</strong> {{ user['full_name'] if user else full_name }}</p>
+                    <p style="font-size: 14px; margin-bottom: 8px;"><strong>Email:</strong> {{ user['email'] if user else '' }}</p>
+                    <p style="font-size: 14px; margin-bottom: 14px;"><strong>Department:</strong> Bachelor of Computer Applications (BCA) — Alva's College, Moodubidire</p>
+                    <h4 style="font-size: 14px; margin-bottom: 8px;">Extracted Resume Skills</h4>
+                    {% if skills %}
+                        {% for s in skills %}
+                            <span class="skill-badge">{{ s }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: #64748b;">No skills extracted yet. <a href="{{ url_for('resume.upload_resume') }}">Upload your resume</a>.</p>
+                    {% endif %}
+                </div>
+
+            {% elif page_type == 'resources' %}
+                <div class="card">
+                    <div class="card-header"><h3>Placement & Interview Preparation</h3></div>
+                    <div class="job-item">
+                        <div class="job-details">
+                            <h4>ATS-Friendly Resume Checklist</h4>
+                            <p>Keep formatting clean in PDF/DOCX, highlight technical projects, and include measurable outcomes.</p>
+                        </div>
+                        <a href="{{ url_for('resume.upload_resume') }}" class="btn btn-primary" style="font-size: 12px;">Test Resume</a>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-details">
+                            <h4>Technical Interview Prep (Python, SQL, Web Stack)</h4>
+                            <p>Review data structures, SQL joins/indexing, REST APIs, and core OOP concepts before campus drives.</p>
+                        </div>
+                        <a href="{{ url_for('jobs.recommended_jobs') }}" class="btn btn-primary" style="font-size: 12px;">Match Roles</a>
+                    </div>
+                    <div class="job-item">
+                        <div class="job-details">
+                            <h4>Alva's Employability Enhancement Center (EEC)</h4>
+                            <p>Connect with placement coordinators for mock interviews, aptitude tests, and company drive schedules.</p>
+                        </div>
+                        <a href="{{ url_for('profile.help_support') }}" class="btn btn-primary" style="font-size: 12px;">Contact EEC</a>
+                    </div>
+                </div>
+
+            {% elif page_type == 'settings' %}
+                <div class="card" style="max-width: 540px;">
+                    <div class="card-header"><h3>Account Settings</h3></div>
+                    {% if message %}
+                        <div style="background: #dcfce7; color: #166534; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;">{{ message }}</div>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('profile.settings') }}">
+                        <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Display Name</label>
+                        <input type="text" name="full_name" value="{{ user['full_name'] if user else full_name }}" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 14px;">
+
+                        <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">New Password (leave blank to keep current)</label>
+                        <input type="password" name="new_password" placeholder="Enter new password" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 16px;">
+
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+
+            {% elif page_type == 'help' %}
+                <div class="card">
+                    <div class="card-header"><h3>Help & Placement Support</h3></div>
+                    <p style="font-size: 14px; margin-bottom: 10px;"><strong>Placement Office:</strong> Employability Enhancement Center (EEC), Alva's College, Moodubidire</p>
+                    <p style="font-size: 14px; margin-bottom: 10px;"><strong>Resume Upload Issues:</strong> Ensure your file is in <code>.pdf</code> or <code>.docx</code> format (under 16 MB) with selectable text.</p>
+                    <p style="font-size: 14px;"><strong>Job Matching:</strong> Match scores update automatically whenever you upload a revised resume.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

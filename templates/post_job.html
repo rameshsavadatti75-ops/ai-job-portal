@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Post Campus Job - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+            <li class="active"><a href="{{ url_for('jobs.post_job') }}">➕ Post Campus Drive</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">📄 My Resume</a></li>
+            <li><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Employability Enhancement Center (EEC) • Placement Portal</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>Placement & Career Portal</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>Post Campus Drive / Job Opening</h1>
+                    <p>Publish verified placement openings directly to the student AI matching engine.</p>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>New Job / Drive Details</h3>
+                    </div>
+
+                    {% if error %}
+                        <div style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;">{{ error }}</div>
+                    {% endif %}
+                    {% if success %}
+                        <div style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;">{{ success }}</div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('jobs.post_job') }}">
+                        <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Job Role / Title *</label>
+                        <input type="text" name="title" placeholder="e.g. Junior Python & SQL Developer" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+
+                        <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Company Name *</label>
+                        <input type="text" name="company" placeholder="e.g. Infosys / TCS / Robosoft" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Location *</label>
+                                <input type="text" name="location" placeholder="e.g. Bengaluru / Mangaluru" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Package / Stipend</label>
+                                <input type="text" name="package_lpa" placeholder="e.g. 4.5 LPA" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Job Type</label>
+                                <select name="job_type" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+                                    <option value="Full Time">Full Time</option>
+                                    <option value="Internship">Internship</option>
+                                    <option value="Campus Drive">Campus Drive</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">External Application Link</label>
+                                <input type="text" name="apply_url" placeholder="https://..." style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+                            </div>
+                        </div>
+
+                        <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Required Skills (comma-separated for AI matching) *</label>
+                        <input type="text" name="skills" placeholder="Python, SQL, HTML, CSS, JavaScript" required style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px;">
+
+                        <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 5px;">Drive Notes / Eligibility</label>
+                        <textarea name="description" rows="2" placeholder="BCA / BSc 2026 batch, min 60% aggregate..." style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 14px;"></textarea>
+
+                        <button type="submit" class="btn btn-primary">Publish Job to Portal</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Published Campus Drives ({{ posted_jobs|length }})</h3>
+                    </div>
+                    {% if posted_jobs %}
+                        {% for job in posted_jobs %}
+                            <div class="job-item">
+                                <div class="job-details">
+                                    <h4>{{ job['title'] }}</h4>
+                                    <p>{{ job['company'] }} • {{ job['location'] }} • {{ job['job_type'] }}{% if job['package_lpa'] %} • {{ job['package_lpa'] }}{% endif %}</p>
+                                    <small style="color: #64748b;">Skills: {{ job['skills'] }}</small>
+                                </div>
+                                <form method="POST" action="{{ url_for('jobs.delete_job', job_id=job['id']) }}" style="margin: 0;">
+                                    <button type="submit" class="btn" style="padding: 5px 10px; font-size: 11.5px; background: #fee2e2; color: #b91c1c;">Remove</button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: #64748b;">No campus drives posted yet. Use the form on the left to publish your first real campus job opening.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

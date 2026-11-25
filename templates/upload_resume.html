@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Resume - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">📄 My Resume</a></li>
+            <li class="active"><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Student Career & Placement Support</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>BCA - 6th Semester Student</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>Upload / Update Resume</h1>
+                    <p>Upload your PDF or DOCX resume to extract skills and calculate live job match scores.</p>
+                </div>
+            </div>
+
+            <div class="card" style="max-width: 680px;">
+                <div class="card-header">
+                    <h3>Select Resume File (.PDF or .DOCX)</h3>
+                    <a href="{{ url_for('dashboard') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">Back to Dashboard</a>
+                </div>
+
+                {% if error %}
+                    <div style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;">
+                        {{ error }}
+                    </div>
+                {% endif %}
+
+                {% if success %}
+                    <div style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;">
+                        {{ success }}
+                    </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('resume.upload_resume') }}" enctype="multipart/form-data">
+                    <input type="file" name="resume_file" accept=".pdf,.docx" required style="display: block; width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 14px; background: #f8fafc;">
+                    <button type="submit" class="btn btn-primary">Parse &amp; Save Resume</button>
+                </form>
+
+                {% if latest_filename %}
+                    <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                        <h4 style="font-size: 14px; margin-bottom: 6px;">Current Saved Resume: {{ latest_filename }}</h4>
+                        {% if latest_skills %}
+                            {% for s in latest_skills %}
+                                <span class="skill-badge">{{ s }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <p style="font-size: 12px; color: #64748b;">No skills extracted yet.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

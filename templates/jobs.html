@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ page_title }} - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li class="{% if page_title == 'Find Jobs' %}active{% endif %}"><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li class="{% if page_title == 'Recommended Jobs' %}active{% endif %}"><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li class="{% if page_title == 'Applied Jobs' %}active{% endif %}"><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li class="{% if page_title == 'Saved Jobs' %}active{% endif %}"><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+            <li><a href="{{ url_for('jobs.post_job') }}">➕ Post Campus Drive</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">📄 My Resume</a></li>
+            <li><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Student Career & Placement Support</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" value="{{ query }}" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>BCA - 6th Semester Student</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>{{ page_title }}</h1>
+                    <p>Campus drives and live job listings scored against your parsed resume skills.</p>
+                    <form method="GET" action="{{ url_for('jobs.find_jobs') }}" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <input type="text" name="q" value="{{ query }}" placeholder="Role or skill (e.g. Python, SQL)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 220px;">
+                        <input type="text" name="location" value="{{ location }}" placeholder="Location (e.g. Bengaluru, Remote)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 180px;">
+                        <button type="submit" class="btn btn-primary" style="background: white; color: #0b1f3f;">Search Jobs</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Your Extracted Skills</h3>
+                    <a href="{{ url_for('resume.upload_resume') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">Update Resume</a>
+                </div>
+                {% if user_skills %}
+                    {% for skill in user_skills %}
+                        <span class="skill-badge">{{ skill }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p style="font-size: 13px; color: #64748b;">No resume skills found yet. Upload your resume to calculate accurate match scores.</p>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>{{ page_title }} ({{ jobs|length }})</h3>
+                    <a href="{{ url_for('jobs.post_job') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">+ Post Campus Opening</a>
+                </div>
+                {% if jobs %}
+                    {% for job in jobs %}
+                        <div class="job-item">
+                            <div class="job-details">
+                                <h4>
+                                    {{ job.title }}
+                                    {% if job.source %}
+                                        <span style="font-size: 10.5px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 12px; margin-left: 6px; font-weight: 600;">{{ job.source }}</span>
+                                    {% endif %}
+                                </h4>
+                                <p>
+                                    {{ job.company }} • {{ job.location }} • {{ job.job_type }}
+                                    {% if job.package_lpa %} • <strong>{{ job.package_lpa }}</strong>{% endif %}
+                                </p>
+                                <div style="margin-top: 6px;">
+                                    {% for req in job.skills %}
+                                        <span class="skill-badge" style="font-size: 11px; padding: 2px 8px;">{{ req }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% if job.missing_skills %}
+                                    <small style="display: block; margin-top: 5px; color: #64748b;">Skills to build: {{ job.missing_skills | join(', ') }}</small>
+                                {% endif %}
+                            </div>
+                            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                                <span class="match-badge">{{ job.match_score }}% Match</span>
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                                    {% if job.apply_url and job.apply_url != '#' %}
+                                        <a href="{{ job.apply_url }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 6px 12px; font-size: 12px; background: #eff6ff; color: #1d4ed8;">Open Link ↗</a>
+                                    {% endif %}
+
+                                    <form method="POST" action="{{ url_for('jobs.record_job_action') }}" style="margin: 0;">
+                                        <input type="hidden" name="action_type" value="{{ 'unsave' if job.is_saved else 'saved' }}">
+                                        <input type="hidden" name="title" value="{{ job.title }}">
+                                        <input type="hidden" name="company" value="{{ job.company }}">
+                                        <input type="hidden" name="location" value="{{ job.location }}">
+                                        <input type="hidden" name="job_type" value="{{ job.job_type }}">
+                                        <input type="hidden" name="skills" value="{{ job.skills | join(', ') }}">
+                                        <input type="hidden" name="apply_url" value="{{ job.apply_url }}">
+                                        <input type="hidden" name="match_score" value="{{ job.match_score }}">
+                                        <input type="hidden" name="next_url" value="{{ request.full_path }}">
+                                        <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: #f1f5f9; color: #0b1f3f;">
+                                            {{ 'Saved ✓' if job.is_saved else 'Save' }}
+                                        </button>
+                                    </form>
+
+                                    <form method="POST" action="{{ url_for('jobs.record_job_action') }}" style="margin: 0;">
+                                        <input type="hidden" name="action_type" value="applied">
+                                        <input type="hidden" name="title" value="{{ job.title }}">
+                                        <input type="hidden" name="company" value="{{ job.company }}">
+                                        <input type="hidden" name="location" value="{{ job.location }}">
+                                        <input type="hidden" name="job_type" value="{{ job.job_type }}">
+                                        <input type="hidden" name="skills" value="{{ job.skills | join(', ') }}">
+                                        <input type="hidden" name="apply_url" value="{{ job.apply_url }}">
+                                        <input type="hidden" name="match_score" value="{{ job.match_score }}">
+                                        <input type="hidden" name="next_url" value="{{ request.full_path }}">
+                                        <button type="submit" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;">
+                                            {{ 'Applied ✓' if job.is_applied else 'Apply Now' }}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="font-size: 13px; color: #64748b;">No jobs found matching your filters.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
