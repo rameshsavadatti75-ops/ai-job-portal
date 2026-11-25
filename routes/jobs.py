@@ -5,6 +5,8 @@ from services.matching import calculate_job_matches
 
 jobs_bp = Blueprint("jobs", __name__)
 
+DEFAULT_COURSE_INFO = "Alva's College Student"
+
 
 def _load_latest_user_skills(user_id):
     conn = get_db_connection()
@@ -115,6 +117,7 @@ def find_jobs():
         "jobs.html",
         full_name=session.get("full_name", "Student"),
         avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         jobs=_attach_flags(filtered, applied_keys, saved_keys),
         user_skills=skills,
         query=query,
@@ -142,6 +145,7 @@ def recommended_jobs():
         "jobs.html",
         full_name=session.get("full_name", "Student"),
         avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         jobs=_attach_flags(ranked, applied_keys, saved_keys),
         user_skills=skills,
         query="",
@@ -203,6 +207,7 @@ def applied_jobs():
         "jobs.html",
         full_name=session.get("full_name", "Student"),
         avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         jobs=jobs,
         user_skills=skills,
         query="",
@@ -264,6 +269,7 @@ def saved_jobs():
         "jobs.html",
         full_name=session.get("full_name", "Student"),
         avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         jobs=jobs,
         user_skills=skills,
         query="",
@@ -326,6 +332,7 @@ def post_job():
         "post_job.html",
         full_name=session.get("full_name", "Student"),
         avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         posted_jobs=posted_jobs,
         error=error,
         success=success

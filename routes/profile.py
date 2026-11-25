@@ -4,12 +4,17 @@ from database import get_db_connection
 
 profile_bp = Blueprint("profile", __name__)
 
+DEFAULT_COURSE_INFO = "Alva's College Student"
+
 
 def _load_profile_data(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, full_name, email, created_at FROM users WHERE id = ?", (user_id,))
+        cursor.execute(
+            "SELECT id, full_name, email, avatar_url, course_info, created_at FROM users WHERE id = ?",
+            (user_id,)
+        )
         user = cursor.fetchone()
 
         cursor.execute(
@@ -22,26 +27,52 @@ def _load_profile_data(user_id):
         conn.close()
 
     skills = []
-    if resume and resume["parsed_skills"]:
+    if resume and resume.get("parsed_skills"):
         skills = [s.strip() for s in str(resume["parsed_skills"]).split(",") if s.strip()]
     return user, resume, skills
 
 
-@profile_bp.route("/profile")
+@profile_bp.route("/profile", methods=["GET", "POST"])
 def view_profile():
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
-    user, resume, skills = _load_profile_data(session["user_id"])
+    user_id = session["user_id"]
+    message = None
+
+    if request.method == "POST":
+        new_name = (request.form.get("full_name") or "").strip()
+        new_course = (request.form.get("course_info") or "").strip()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            if new_name:
+                cursor.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, user_id))
+                session["full_name"] = new_name
+            if new_course:
+                cursor.execute("UPDATE users SET course_info = ? WHERE id = ?", (new_course, user_id))
+                session["course_info"] = new_course
+            conn.commit()
+            message = "Profile updated successfully!"
+        finally:
+            cursor.close()
+            conn.close()
+
+    user, resume, skills = _load_profile_data(user_id)
+    course_info = (user.get("course_info") if user else "") or session.get("course_info") or DEFAULT_COURSE_INFO
+    avatar_url = (user.get("avatar_url") if user else "") or session.get("avatar_url", "")
+
     return render_template(
-        "portal_pages.html",
-        page_type="profile",
+        "profile.html",
         page_title="Student Profile",
         full_name=session.get("full_name", "Student"),
+        avatar_url=avatar_url,
+        course_info=course_info,
         user=user,
         resume=resume,
         skills=skills,
-        message=None
+        message=message
     )
 
 
@@ -55,6 +86,8 @@ def career_resources():
         page_type="resources",
         page_title="Career Resources",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         user=None,
         resume=None,
         skills=[],
@@ -72,6 +105,7 @@ def settings():
 
     if request.method == "POST":
         new_name = (request.form.get("full_name") or "").strip()
+        new_course = (request.form.get("course_info") or "").strip()
         new_password = (request.form.get("new_password") or "").strip()
 
         conn = get_db_connection()
@@ -80,6 +114,9 @@ def settings():
             if new_name:
                 cursor.execute("UPDATE users SET full_name = ? WHERE id = ?", (new_name, user_id))
                 session["full_name"] = new_name
+            if new_course:
+                cursor.execute("UPDATE users SET course_info = ? WHERE id = ?", (new_course, user_id))
+                session["course_info"] = new_course
             if new_password:
                 hashed = hashlib.sha256(new_password.encode("utf-8")).hexdigest()
                 cursor.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
@@ -90,11 +127,15 @@ def settings():
             conn.close()
 
     user, resume, skills = _load_profile_data(user_id)
+    course_info = (user.get("course_info") if user else "") or session.get("course_info") or DEFAULT_COURSE_INFO
+    avatar_url = (user.get("avatar_url") if user else "") or session.get("avatar_url", "")
+
     return render_template(
-        "portal_pages.html",
-        page_type="settings",
-        page_title="Settings",
+        "profile.html",
+        page_title="Profile & Settings",
         full_name=session.get("full_name", "Student"),
+        avatar_url=avatar_url,
+        course_info=course_info,
         user=user,
         resume=resume,
         skills=skills,
@@ -112,6 +153,8 @@ def help_support():
         page_type="help",
         page_title="Help & Support",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
+        course_info=session.get("course_info", DEFAULT_COURSE_INFO),
         user=None,
         resume=None,
         skills=[],

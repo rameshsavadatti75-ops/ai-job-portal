@@ -15,6 +15,8 @@ oauth = OAuth()
 google = None
 linkedin = None
 
+DEFAULT_COURSE_INFO = "Alva's College Student"
+
 
 def init_oauth(app):
     global google, linkedin
@@ -67,7 +69,6 @@ def _send_reset_email(recipient_email, reset_url):
     </div>
     """
 
-    # 1. HTTPS API via Brevo (works on Render Free Tier where SMTP ports are blocked)
     if brevo_api_key:
         if not mail_from:
             return False, "Set MAIL_FROM in Render to your verified Brevo sender email."
@@ -93,14 +94,13 @@ def _send_reset_email(recipient_email, reset_url):
         except Exception as exc:
             return False, f"Could not send reset email via API: {exc}"
 
-    # 2. Fallback to standard SMTP (works locally)
     mail_username = (os.environ.get("MAIL_USERNAME") or "").strip()
     mail_password = (os.environ.get("MAIL_PASSWORD") or "").strip()
     mail_server = (os.environ.get("MAIL_SERVER") or "smtp.gmail.com").strip()
     mail_port = int(os.environ.get("MAIL_PORT") or "587")
 
     if not mail_username or not mail_password:
-        return False, "Set BREVO_API_KEY (recommended on Render) or MAIL_USERNAME/MAIL_PASSWORD in Environment."
+        return False, "Set BREVO_API_KEY in Render Environment to send reset emails."
 
     msg = EmailMessage()
     msg["Subject"] = "Reset Your Password - Alva's College Student Career Portal"
@@ -122,10 +122,6 @@ def _send_reset_email(recipient_email, reset_url):
                 server.login(mail_username, mail_password)
                 server.send_message(msg)
         return True, None
-    except OSError as exc:
-        if getattr(exc, "errno", None) == 101:
-            return False, "Render blocks SMTP ports (587/465). Add BREVO_API_KEY in Render Environment to send via HTTPS."
-        return False, f"Could not send reset email: {exc}"
     except Exception as exc:
         return False, f"Could not send reset email: {exc}"
 
@@ -135,17 +131,23 @@ def _login_or_create_oauth_user(email, full_name, avatar_url=""):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, full_name, email, avatar_url FROM users WHERE email = ?", (email,))
+        cursor.execute(
+            "SELECT id, full_name, email, avatar_url, course_info FROM users WHERE email = ?",
+            (email,)
+        )
         user = cursor.fetchone()
 
         if not user:
             random_secret = secrets.token_urlsafe(24)
             cursor.execute(
-                "INSERT INTO users (full_name, email, password, avatar_url) VALUES (?, ?, ?, ?)",
-                (full_name, email, _hash_password(random_secret), avatar_clean)
+                "INSERT INTO users (full_name, email, password, avatar_url, course_info) VALUES (?, ?, ?, ?, ?)",
+                (full_name, email, _hash_password(random_secret), avatar_clean, DEFAULT_COURSE_INFO)
             )
             conn.commit()
-            cursor.execute("SELECT id, full_name, email, avatar_url FROM users WHERE email = ?", (email,))
+            cursor.execute(
+                "SELECT id, full_name, email, avatar_url, course_info FROM users WHERE email = ?",
+                (email,)
+            )
             user = cursor.fetchone()
         elif avatar_clean and user.get("avatar_url") != avatar_clean:
             cursor.execute("UPDATE users SET avatar_url = ? WHERE id = ?", (avatar_clean, user["id"]))
@@ -161,6 +163,7 @@ def _login_or_create_oauth_user(email, full_name, avatar_url=""):
     session["user_id"] = user["id"]
     session["full_name"] = user["full_name"]
     session["avatar_url"] = user.get("avatar_url") or ""
+    session["course_info"] = (user.get("course_info") or "").strip() or DEFAULT_COURSE_INFO
     return True
 
 
@@ -170,6 +173,7 @@ def register():
         full_name = (request.form.get("full_name") or request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
         password = (request.form.get("password") or "").strip()
+        course_info = (request.form.get("course_info") or "").strip() or DEFAULT_COURSE_INFO
 
         if not full_name or not email or not password:
             return render_template("register.html", error="All fields are required.")
@@ -178,8 +182,8 @@ def register():
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)",
-                (full_name, email, _hash_password(password))
+                "INSERT INTO users (full_name, email, password, course_info) VALUES (?, ?, ?, ?)",
+                (full_name, email, _hash_password(password), course_info)
             )
             conn.commit()
             return redirect(url_for("auth.login"))
@@ -208,7 +212,7 @@ def login():
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT id, full_name, email, avatar_url FROM users WHERE email = ? AND password = ?",
+                "SELECT id, full_name, email, avatar_url, course_info FROM users WHERE email = ? AND password = ?",
                 (email, _hash_password(password))
             )
             user = cursor.fetchone()
@@ -220,6 +224,7 @@ def login():
             session["user_id"] = user["id"]
             session["full_name"] = user["full_name"]
             session["avatar_url"] = user.get("avatar_url") or ""
+            session["course_info"] = (user.get("course_info") or "").strip() or DEFAULT_COURSE_INFO
             return redirect(url_for("dashboard"))
 
         return render_template("login.html", error="Invalid email or password.")
@@ -298,7 +303,7 @@ def google_login():
     if not os.environ.get("GOOGLE_CLIENT_ID") or not os.environ.get("GOOGLE_CLIENT_SECRET"):
         return render_template("login.html", error="Google login is not configured on the server yet.")
     redirect_uri = url_for("auth.google_callback", _external=True)
-    return google.authorize_redirect(redirect_uri)
+    return google.authorize_redirect(redirect_uri, prompt="select_account")
 
 
 @auth_bp.route("/auth/google/callback")

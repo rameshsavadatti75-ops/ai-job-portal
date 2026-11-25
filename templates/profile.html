@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ page_title }} - Alva's College Career Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Alva's Logo">
+            <a href="{{ url_for('dashboard') }}" class="sidebar-brand">Alva's College <span>Student Career Portal</span></a>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-category">Main</li>
+            <li><a href="{{ url_for('dashboard') }}">📊 Dashboard</a></li>
+
+            <li class="menu-category">Job Opportunities</li>
+            <li><a href="{{ url_for('jobs.find_jobs') }}">💼 Find Jobs</a></li>
+            <li><a href="{{ url_for('jobs.recommended_jobs') }}">✨ Recommended Jobs</a></li>
+            <li><a href="{{ url_for('jobs.applied_jobs') }}">🚀 Applied Jobs</a></li>
+            <li><a href="{{ url_for('jobs.saved_jobs') }}">❤️ Saved Jobs</a></li>
+            <li><a href="{{ url_for('jobs.post_job') }}">➕ Post Campus Drive</a></li>
+
+            <li class="menu-category">Resume Management</li>
+            <li><a href="{{ url_for('profile.view_profile') }}">📄 My Resume</a></li>
+            <li><a href="{{ url_for('resume.upload_resume') }}">📁 Upload / Update</a></li>
+
+            <li class="menu-category">Profile & Settings</li>
+            <li class="active"><a href="{{ url_for('profile.view_profile') }}">👤 Profile</a></li>
+            <li><a href="{{ url_for('profile.career_resources') }}">📖 Career Resources</a></li>
+            <li><a href="{{ url_for('profile.settings') }}">⚙️ Settings</a></li>
+            <li><a href="{{ url_for('profile.help_support') }}">❓ Help & Support</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">🚪 Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-college">
+                <div class="college-titles">
+                    <h2>Alva's College, Moodubidire</h2>
+                    <span>Student Career & Placement Support</span>
+                </div>
+            </div>
+            <form class="search-bar" method="GET" action="{{ url_for('jobs.find_jobs') }}">
+                <input type="text" name="q" placeholder="Search jobs, companies, skills...">
+            </form>
+            <div class="user-profile-badge">
+                <img src="{{ avatar_url if avatar_url else 'https://ui-avatars.com/api/?name=' + (full_name | urlencode) + '&background=1d63dc&color=fff&size=128' }}" alt="{{ full_name }}">
+                <div class="user-info">
+                    <span>{{ full_name }}</span>
+                    <small>{{ course_info }}</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="hero-banner">
+                <div>
+                    <h1>{{ page_title }}</h1>
+                    <p>Keep your academic program, semester, and account details accurate for campus placements.</p>
+                </div>
+            </div>
+
+            {% if message %}
+                <div class="card" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-weight: 600;">
+                    ✅ {{ message }}
+                </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Edit Student Details</h3>
+                    </div>
+                    <form method="POST" action="{{ url_for('profile.settings') }}">
+                        <label style="display:block; font-size:12.5px; font-weight:600; color:#334155; margin-bottom:6px;">Full Name</label>
+                        <input type="text" name="full_name" value="{{ user.full_name if user else full_name }}" required
+                            style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:14px;">
+
+                        <label style="display:block; font-size:12.5px; font-weight:600; color:#334155; margin-bottom:6px;">Email Address</label>
+                        <input type="email" value="{{ user.email if user else '' }}" disabled
+                            style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:14px; background:#f8fafc; color:#64748b;">
+
+                        <label style="display:block; font-size:12.5px; font-weight:600; color:#334155; margin-bottom:6px;">Course &amp; Semester</label>
+                        <input type="text" name="course_info" value="{{ course_info }}" placeholder="e.g. BCA - 6th Semester, BCom - 4th Semester, MCA"
+                            style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:14px;">
+
+                        <label style="display:block; font-size:12.5px; font-weight:600; color:#334155; margin-bottom:6px;">New Portal Password (Optional)</label>
+                        <input type="password" name="new_password" placeholder="Leave blank to keep current password"
+                            style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:16px;">
+
+                        <button type="submit" class="btn btn-primary">Save Profile Changes</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Resume &amp; Skills Summary</h3>
+                        <a href="{{ url_for('resume.upload_resume') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 600;">Upload New</a>
+                    </div>
+                    {% if skills %}
+                        <p style="font-size: 12.5px; color: #475569; margin-bottom: 10px;">Extracted skills currently used for job matching:</p>
+                        {% for s in skills %}
+                            <span class="skill-badge">{{ s }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">No resume uploaded yet.</p>
+                        <a href="{{ url_for('resume.upload_resume') }}" class="btn btn-primary" style="font-size: 12px;">Upload Resume &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -54,7 +54,7 @@
                 <img src="{{ avatar_url if avatar_url else 'https://ui-avatars.com/api/?name=' + (full_name | urlencode) + '&background=1d63dc&color=fff&size=128' }}" alt="{{ full_name }}">
                 <div class="user-info">
                     <span>{{ full_name }}</span>
-                    <small>BCA - 6th Semester Student</small>
+                    <small>{{ course_info or "Alva's College Student" }}</small>
                 </div>
             </div>
         </div>
