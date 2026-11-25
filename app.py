@@ -1,9 +1,10 @@
 import os
 from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from database import init_db, get_db_connection
-from routes.auth import auth_bp
+from routes.auth import auth_bp, init_oauth
 from routes.resume import resume_bp
 from routes.jobs import jobs_bp
 from routes.profile import profile_bp
@@ -13,6 +14,9 @@ from services.matching import calculate_job_matches, calculate_resume_strength
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+init_oauth(app)
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(resume_bp)
