@@ -902,8 +902,7 @@
             </div>
         </div>
     </div>
-
-    <!-- FORGOT PASSWORD MODAL -->
+<!-- FORGOT PASSWORD MODAL -->
     <div class="modal-backdrop" id="forgotModal" onclick="closeOnBackdrop(event, 'forgotModal')">
         <div class="modal-box">
             <div class="modal-header">
@@ -911,14 +910,14 @@
                 <button type="button" class="modal-close" onclick="closeModal('forgotModal')">&times;</button>
             </div>
             <p class="modal-desc">
-                Enter your registered email address below. If you want passwords updated directly in your database, we can also hook this to a Flask reset route.
+                Enter your registered email address below and we will send a real password reset link to your inbox.
             </p>
-            <form id="forgotPasswordForm" onsubmit="handleForgotSubmit(event)">
+            <form id="forgotPasswordForm" method="POST" action="{{ url_for('auth.forgot_password') }}">
                 <label for="resetEmailInput">Registered Email Address</label>
                 <input type="email" id="resetEmailInput" name="email" placeholder="you@example.com" required>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" onclick="closeModal('forgotModal')">Close</button>
-                    <button type="submit" class="btn-primary-sm">Request Reset</button>
+                    <button type="submit" class="btn-primary-sm">Send Reset Link</button>
                 </div>
             </form>
         </div>
@@ -979,7 +978,7 @@
             pwdField.focus();
         }
 
-        function openForgotModal() {
+     function openForgotModal() {
             const prefill = document.getElementById("loginEmail").value.trim();
             document.getElementById("resetEmailInput").value = prefill;
             openModal("forgotModal");

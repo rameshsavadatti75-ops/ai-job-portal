@@ -46,6 +46,10 @@ def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        cursor.execute("SELECT avatar_url FROM users WHERE id = ?", (user_id,))
+        u_row = cursor.fetchone()
+        avatar_url = (u_row.get("avatar_url") if u_row else "") or session.get("avatar_url", "")
+
         cursor.execute(
             "SELECT resume_filepath, parsed_skills, uploaded_at FROM resumes WHERE user_id = ? ORDER BY uploaded_at DESC, id DESC LIMIT 1",
             (user_id,)
@@ -60,6 +64,8 @@ def dashboard():
     finally:
         cursor.close()
         conn.close()
+
+    session["avatar_url"] = avatar_url
 
     resume_filename = None
     upload_date = None
@@ -90,6 +96,7 @@ def dashboard():
     return render_template(
         "dashboard.html",
         full_name=full_name,
+        avatar_url=avatar_url,
         resume_filename=resume_filename,
         upload_date=upload_date,
         skills_list=skills_list,

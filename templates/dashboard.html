@@ -51,7 +51,7 @@
                 <input type="text" name="q" placeholder="Search jobs, companies, skills...">
             </form>
             <div class="user-profile-badge">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <img src="{{ avatar_url if avatar_url else 'https://ui-avatars.com/api/?name=' + (full_name | urlencode) + '&background=1d63dc&color=fff&size=128' }}" alt="{{ full_name }}">
                 <div class="user-info">
                     <span>{{ full_name }}</span>
                     <small>BCA - 6th Semester Student</small>
@@ -84,7 +84,7 @@
                     <div class="stat-info">
                         <h3>{{ applied_count }}</h3>
                         <p>Applied Jobs</p>
-                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Tracked in SQLite</small>
+                        <small style="color: #16a34a; font-size: 11px; font-weight: 600;">Tracked applications</small>
                     </div>
                     <div class="stat-icon" style="background: #f0fdf4; color: #16a34a;">🚀</div>
                 </div>

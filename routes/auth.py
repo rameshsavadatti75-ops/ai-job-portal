@@ -1,9 +1,12 @@
 import hashlib
 import os
 import secrets
+import smtplib
 import sqlite3
+from email.message import EmailMessage
 from authlib.integrations.flask_client import OAuth
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, session
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from database import get_db_connection
 
 auth_bp = Blueprint("auth", __name__)
@@ -40,22 +43,87 @@ def _hash_password(raw_password):
     return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
 
 
-def _login_or_create_oauth_user(email, full_name):
+def _get_serializer():
+    secret = current_app.secret_key or os.environ.get("SECRET_KEY") or "alvas-career-portal-secret"
+    return URLSafeTimedSerializer(secret, salt="password-reset-salt")
+
+
+def _send_reset_email(recipient_email, reset_url):
+    mail_username = (os.environ.get("MAIL_USERNAME") or "").strip()
+    mail_password = (os.environ.get("MAIL_PASSWORD") or "").strip()
+    mail_server = (os.environ.get("MAIL_SERVER") or "smtp.gmail.com").strip()
+    mail_port = int(os.environ.get("MAIL_PORT") or "587")
+    mail_from = (os.environ.get("MAIL_FROM") or mail_username).strip()
+
+    if not mail_username or not mail_password:
+        return False, "Email sender is not configured yet (set MAIL_USERNAME and MAIL_PASSWORD in Render)."
+
+    msg = EmailMessage()
+    msg["Subject"] = "Reset Your Password - Alva's College Student Career Portal"
+    msg["From"] = mail_from
+    msg["To"] = recipient_email
+    msg.set_content(
+        f"Hello,\n\n"
+        f"We received a request to reset your password for Alva's College Student Career Portal.\n\n"
+        f"Click the link below to set a new password (valid for 30 minutes):\n"
+        f"{reset_url}\n\n"
+        f"If you did not request this, you can safely ignore this email.\n"
+    )
+    msg.add_alternative(
+        f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 520px;">
+            <h2 style="color: #1d4ed8; margin-bottom: 8px;">Password Reset Request</h2>
+            <p>Hello,</p>
+            <p>We received a request to reset your password for <strong>Alva's College Student Career Portal</strong>.</p>
+            <p style="margin: 20px 0;">
+                <a href="{reset_url}" style="background: #1d63dc; color: #ffffff; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                    Reset Password
+                </a>
+            </p>
+            <p style="font-size: 13px; color: #475569;">This link expires in 30 minutes. If you didn't request this, ignore this email.</p>
+        </div>
+        """,
+        subtype="html",
+    )
+
+    try:
+        if mail_port == 465:
+            with smtplib.SMTP_SSL(mail_server, mail_port, timeout=15) as server:
+                server.login(mail_username, mail_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(mail_server, mail_port, timeout=15) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(mail_username, mail_password)
+                server.send_message(msg)
+        return True, None
+    except Exception as exc:
+        return False, f"Could not send reset email: {exc}"
+
+
+def _login_or_create_oauth_user(email, full_name, avatar_url=""):
+    avatar_clean = (avatar_url or "").strip() or None
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
+        cursor.execute("SELECT id, full_name, email, avatar_url FROM users WHERE email = ?", (email,))
         user = cursor.fetchone()
 
         if not user:
             random_secret = secrets.token_urlsafe(24)
             cursor.execute(
-                "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)",
-                (full_name, email, _hash_password(random_secret))
+                "INSERT INTO users (full_name, email, password, avatar_url) VALUES (?, ?, ?, ?)",
+                (full_name, email, _hash_password(random_secret), avatar_clean)
             )
             conn.commit()
-            cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
+            cursor.execute("SELECT id, full_name, email, avatar_url FROM users WHERE email = ?", (email,))
             user = cursor.fetchone()
+        elif avatar_clean and user.get("avatar_url") != avatar_clean:
+            cursor.execute("UPDATE users SET avatar_url = ? WHERE id = ?", (avatar_clean, user["id"]))
+            conn.commit()
+            user["avatar_url"] = avatar_clean
     finally:
         cursor.close()
         conn.close()
@@ -65,6 +133,7 @@ def _login_or_create_oauth_user(email, full_name):
 
     session["user_id"] = user["id"]
     session["full_name"] = user["full_name"]
+    session["avatar_url"] = user.get("avatar_url") or ""
     return True
 
 
@@ -112,7 +181,7 @@ def login():
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "SELECT id, full_name, email FROM users WHERE email = ? AND password = ?",
+                "SELECT id, full_name, email, avatar_url FROM users WHERE email = ? AND password = ?",
                 (email, _hash_password(password))
             )
             user = cursor.fetchone()
@@ -123,11 +192,78 @@ def login():
         if user:
             session["user_id"] = user["id"]
             session["full_name"] = user["full_name"]
+            session["avatar_url"] = user.get("avatar_url") or ""
             return redirect(url_for("dashboard"))
 
         return render_template("login.html", error="Invalid email or password.")
 
     return render_template("login.html")
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    email = (request.form.get("email") or "").strip().lower()
+    if not email:
+        return render_template("login.html", error="Please enter your registered email address.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, email FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not user:
+        return render_template("login.html", error="No account found with that email address.")
+
+    token = _get_serializer().dumps(email)
+    reset_url = url_for("auth.reset_password", token=token, _external=True)
+    sent, err_msg = _send_reset_email(email, reset_url)
+
+    if not sent:
+        return render_template("login.html", error=err_msg)
+
+    return render_template(
+        "login.html",
+        info=f"Password reset link sent to {email}. Check your inbox (and spam folder); it expires in 30 minutes."
+    )
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email = _get_serializer().loads(token, max_age=1800)
+    except SignatureExpired:
+        return render_template("reset_password.html", token=token, error="This password reset link has expired. Please request a new one.")
+    except BadSignature:
+        return render_template("reset_password.html", token=token, error="Invalid password reset link.")
+
+    if request.method == "POST":
+        password = (request.form.get("password") or "").strip()
+        confirm = (request.form.get("confirm_password") or "").strip()
+
+        if len(password) < 6:
+            return render_template("reset_password.html", token=token, email=email, error="Password must be at least 6 characters.")
+        if password != confirm:
+            return render_template("reset_password.html", token=token, email=email, error="Passwords do not match.")
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE users SET password = ? WHERE email = ?",
+                (_hash_password(password), email)
+            )
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
+        return render_template("login.html", info="Your password has been updated. You can sign in now.")
+
+    return render_template("reset_password.html", token=token, email=email)
 
 
 @auth_bp.route("/auth/google")
@@ -151,7 +287,9 @@ def google_callback():
         return render_template("login.html", error="Could not retrieve email from your Google account.")
 
     full_name = (userinfo.get("name") or email.split("@")[0]).strip()
-    if not _login_or_create_oauth_user(email, full_name):
+    avatar_url = (userinfo.get("picture") or "").strip()
+
+    if not _login_or_create_oauth_user(email, full_name, avatar_url):
         return render_template("login.html", error="Could not complete Google login.")
 
     return redirect(url_for("dashboard"))
@@ -182,8 +320,9 @@ def linkedin_callback():
         or f"{userinfo.get('given_name', '')} {userinfo.get('family_name', '')}".strip()
         or email.split("@")[0]
     ).strip()
+    avatar_url = (userinfo.get("picture") or "").strip()
 
-    if not _login_or_create_oauth_user(email, full_name):
+    if not _login_or_create_oauth_user(email, full_name, avatar_url):
         return render_template("login.html", error="Could not complete LinkedIn login.")
 
     return redirect(url_for("dashboard"))

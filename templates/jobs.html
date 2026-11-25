@@ -47,7 +47,7 @@
                 <input type="text" name="q" value="{{ query }}" placeholder="Search jobs, companies, skills...">
             </form>
             <div class="user-profile-badge">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" alt="User">
+                <img src="{{ avatar_url if avatar_url else 'https://ui-avatars.com/api/?name=' + (full_name | urlencode) + '&background=1d63dc&color=fff&size=128' }}" alt="{{ full_name }}">
                 <div class="user-info">
                     <span>{{ full_name }}</span>
                     <small>BCA - 6th Semester Student</small>
@@ -59,11 +59,29 @@
             <div class="hero-banner">
                 <div>
                     <h1>{{ page_title }}</h1>
-                    <p>Campus drives and live job listings scored against your parsed resume skills.</p>
-                    <form method="GET" action="{{ url_for('jobs.find_jobs') }}" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <input type="text" name="q" value="{{ query }}" placeholder="Role or skill (e.g. Python, SQL)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 220px;">
-                        <input type="text" name="location" value="{{ location }}" placeholder="Location (e.g. Bengaluru, Remote)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 180px;">
-                        <button type="submit" class="btn btn-primary" style="background: white; color: #0b1f3f;">Search Jobs</button>
+                    <p>Prioritized for Karnataka &amp; India opportunities, scored against your parsed resume skills.</p>
+                    <form method="GET" action="{{ url_for('jobs.find_jobs') }}" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" name="q" value="{{ query }}" placeholder="Role or skill (e.g. Python, SQL)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 200px;">
+                        <input type="text" name="location" value="{{ location }}" placeholder="City / State (e.g. Bengaluru)" style="padding: 9px 14px; border-radius: 8px; border: none; min-width: 170px;">
+                        <select name="region" style="padding: 9px 12px; border-radius: 8px; border: none; background: #ffffff; color: #0f172a; font-weight: 600;">
+                            <option value="all" {% if region == 'all' %}selected{% endif %}>Priority: Karnataka → India → Global</option>
+                            <option value="karnataka" {% if region == 'karnataka' %}selected{% endif %}>Karnataka Only</option>
+                            <option value="india" {% if region == 'india' %}selected{% endif %}>Rest of India</option>
+                            <option value="global" {% if region == 'global' %}selected{% endif %}>Global / Remote</option>
+                        </select>
+                        <select name="job_type" style="padding: 9px 12px; border-radius: 8px; border: none; background: #ffffff; color: #0f172a; font-weight: 600;">
+                            <option value="all" {% if job_type == 'all' %}selected{% endif %}>All Types</option>
+                            <option value="Full Time" {% if job_type == 'Full Time' %}selected{% endif %}>Full Time</option>
+                            <option value="Internship" {% if job_type == 'Internship' %}selected{% endif %}>Internship</option>
+                            <option value="Remote" {% if job_type == 'Remote' %}selected{% endif %}>Remote</option>
+                        </select>
+                        <select name="min_match" style="padding: 9px 12px; border-radius: 8px; border: none; background: #ffffff; color: #0f172a; font-weight: 600;">
+                            <option value="0" {% if min_match == '0' %}selected{% endif %}>Any Match %</option>
+                            <option value="25" {% if min_match == '25' %}selected{% endif %}>25%+ Match</option>
+                            <option value="50" {% if min_match == '50' %}selected{% endif %}>50%+ Match</option>
+                            <option value="75" {% if min_match == '75' %}selected{% endif %}>75%+ Match</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary" style="background: white; color: #0b1f3f; font-weight: 700;">Filter Jobs</button>
                     </form>
                 </div>
             </div>
@@ -93,8 +111,11 @@
                             <div class="job-details">
                                 <h4>
                                     {{ job.title }}
+                                    {% if job.region_label %}
+                                        <span style="font-size: 10.5px; background: {{ job.badge_bg }}; color: {{ job.badge_fg }}; padding: 2px 8px; border-radius: 12px; margin-left: 6px; font-weight: 700;">{{ job.region_label }}</span>
+                                    {% endif %}
                                     {% if job.source %}
-                                        <span style="font-size: 10.5px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 12px; margin-left: 6px; font-weight: 600;">{{ job.source }}</span>
+                                        <span style="font-size: 10.5px; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 12px; margin-left: 4px; font-weight: 600;">{{ job.source }}</span>
                                     {% endif %}
                                 </h4>
                                 <p>
@@ -113,6 +134,17 @@
                             <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
                                 <span class="match-badge">{{ job.match_score }}% Match</span>
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end;">
+                                    <button type="button" class="btn"
+                                        style="padding: 6px 12px; font-size: 12px; background: #fef3c7; color: #92400e; font-weight: 600;"
+                                        data-title="{{ job.title }}"
+                                        data-company="{{ job.company }}"
+                                        data-location="{{ job.location }}"
+                                        data-skills="{{ job.skills | join(', ') }}"
+                                        data-missing="{{ (job.missing_skills or []) | join(', ') }}"
+                                        onclick="openPrepModal(this)">
+                                        ✨ Prep &amp; Cover Letter
+                                    </button>
+
                                     {% if job.apply_url and job.apply_url != '#' %}
                                         <a href="{{ job.apply_url }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 6px 12px; font-size: 12px; background: #eff6ff; color: #1d4ed8;">Open Link ↗</a>
                                     {% endif %}
@@ -156,5 +188,84 @@
             </div>
         </div>
     </div>
+
+    <div id="prepModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.55); z-index:999; align-items:center; justify-content:center; padding:16px;" onclick="if(event.target.id==='prepModal') this.style.display='none'">
+        <div style="background:#fff; width:100%; max-width:620px; border-radius:16px; padding:24px; max-height:88vh; overflow-y:auto; box-shadow:0 24px 50px rgba(15,23,42,0.28);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 id="prepTitle" style="font-size:18px; color:#0f172a;">Career Prep Toolkit</h3>
+                <button type="button" onclick="document.getElementById('prepModal').style.display='none'" style="border:none; background:#f1f5f9; width:30px; height:30px; border-radius:8px; font-size:18px; cursor:pointer;">&times;</button>
+            </div>
+            <p id="prepMeta" style="font-size:13px; color:#475569; margin-bottom:14px;"></p>
+
+            <h4 style="font-size:14px; color:#1e3a8a; margin-bottom:6px;">🎯 Priority Interview Focus &amp; Skill Gaps</h4>
+            <ul id="prepQuestions" style="font-size:13px; color:#334155; padding-left:18px; line-height:1.6; margin-bottom:16px;"></ul>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <h4 style="font-size:14px; color:#1e3a8a;">✉️ 1-Click ATS Application Note</h4>
+                <button type="button" id="copyBtn" onclick="copyCoverLetter()" style="border:none; background:#eff6ff; color:#1d4ed8; padding:5px 10px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer;">Copy Text</button>
+            </div>
+            <textarea id="coverLetterBox" rows="8" style="width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:12.5px; color:#0f172a; line-height:1.5;"></textarea>
+        </div>
+    </div>
+
+    <div id="portalData"
+        data-student-name="{{ full_name | e }}"
+        data-student-skills="{{ user_skills | join(', ') | e }}"
+        style="display:none;"></div>
+
+    <script>
+        const portalEl = document.getElementById("portalData");
+        const STUDENT_NAME = portalEl ? portalEl.dataset.studentName : "Student";
+        const STUDENT_SKILLS = portalEl && portalEl.dataset.studentSkills
+            ? portalEl.dataset.studentSkills.split(",").map(s => s.trim()).filter(Boolean)
+            : [];
+
+        function openPrepModal(btn) {
+            const title = btn.dataset.title || "Role";
+            const company = btn.dataset.company || "Company";
+            const loc = btn.dataset.location || "India";
+            const missing = (btn.dataset.missing || "").split(",").map(s => s.trim()).filter(Boolean);
+            const matched = STUDENT_SKILLS.length ? STUDENT_SKILLS.slice(0, 5).join(", ") : "software development and problem solving";
+
+            document.getElementById("prepTitle").textContent = `${title} — ${company}`;
+            document.getElementById("prepMeta").textContent = `Location: ${loc} • Your Strengths: ${matched}`;
+
+            const qList = document.getElementById("prepQuestions");
+            qList.innerHTML = "";
+            const prompts = [
+                `Walk through a project where you applied ${matched} end-to-end.`,
+                missing.length ? `Quickly revise fundamentals of: ${missing.join(", ")} before technical rounds.` : "Prepare system design & edge-case debugging examples from your projects.",
+                `Explain why you're excited to contribute to ${company} (${loc}) as a BCA student.`
+            ];
+            prompts.forEach(p => {
+                const li = document.createElement("li");
+                li.textContent = p;
+                qList.appendChild(li);
+            });
+
+            document.getElementById("coverLetterBox").value =
+`Dear Hiring Team at ${company},
+
+I am ${STUDENT_NAME}, a BCA student at Alva's College, Moodubidire, writing to express my strong interest in the ${title} opportunity (${loc}).
+
+With hands-on experience in ${matched}, I enjoy building practical solutions, writing clean code, and collaborating with teams to ship reliable features quickly. I would welcome the opportunity to contribute to ${company} and learn from your engineering team.
+
+Best regards,
+${STUDENT_NAME}`;
+
+            document.getElementById("prepModal").style.display = "flex";
+        }
+
+        function copyCoverLetter() {
+            const box = document.getElementById("coverLetterBox");
+            box.select();
+            navigator.clipboard?.writeText(box.value);
+            const btn = document.getElementById("copyBtn");
+            if (btn) {
+                btn.textContent = "Copied ✓";
+                setTimeout(() => { btn.textContent = "Copy Text"; }, 1800);
+            }
+        }
+    </script>
 </body>
 </html>

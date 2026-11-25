@@ -51,12 +51,25 @@ class DBCursorWrapper:
     def __init__(self, cur, is_pg):
         self._cur = cur
         self.is_pg = is_pg
+        self._last_inserted_id = None
 
     def execute(self, sql, params=()):
         query = _adapt_query(sql)
+        appended_returning = False
         if self.is_pg and query.strip().upper().startswith("INSERT") and "RETURNING" not in query.upper():
             query = f"{query.rstrip().rstrip(';')} RETURNING id"
+            appended_returning = True
+
         self._cur.execute(query, params)
+
+        if appended_returning:
+            try:
+                row = self._cur.fetchone()
+                if row:
+                    self._last_inserted_id = row["id"] if isinstance(row, dict) else row[0]
+            except Exception:
+                self._last_inserted_id = None
+
         return self
 
     def fetchone(self):
@@ -70,10 +83,7 @@ class DBCursorWrapper:
     @property
     def lastrowid(self):
         if self.is_pg:
-            row = self._cur.fetchone()
-            if row:
-                return row["id"] if isinstance(row, dict) else row[0]
-            return None
+            return self._last_inserted_id
         return self._cur.lastrowid
 
     def close(self):
@@ -94,6 +104,16 @@ def get_db_connection():
     return DBConnectionWrapper(sqlite_conn, is_pg=False)
 
 
+def _ensure_column_exists(cursor, is_pg, table_name, column_name, column_def):
+    if is_pg:
+        cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {column_def}")
+    else:
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        cols = [row["name"] if isinstance(row, dict) else row[1] for row in cursor.fetchall()]
+        if column_name not in cols:
+            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+
+
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -111,9 +131,12 @@ def init_db():
                 full_name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
+                avatar_url TEXT,
                 created_at {ts_col}
             )
         """)
+
+        _ensure_column_exists(cursor, conn.is_pg, "users", "avatar_url", "TEXT")
 
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS resumes (

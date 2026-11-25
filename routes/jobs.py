@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from database import get_db_connection
-from services.job_api import fetch_jobs
+from services.job_api import fetch_jobs, classify_region
 from services.matching import calculate_job_matches
 
 jobs_bp = Blueprint("jobs", __name__)
@@ -19,7 +19,7 @@ def _load_latest_user_skills(user_id):
         cursor.close()
         conn.close()
 
-    if not row or not row["parsed_skills"]:
+    if not row or not row.get("parsed_skills"):
         return []
     return [s.strip() for s in str(row["parsed_skills"]).split(",") if s.strip()]
 
@@ -42,15 +42,54 @@ def _get_user_action_keys(user_id):
     return applied, saved
 
 
+def _sort_karnataka_first(jobs):
+    return sorted(
+        jobs,
+        key=lambda j: (
+            int(j.get("region_tier", 3)),
+            -(int(j.get("match_score", 0)))
+        )
+    )
+
+
 def _attach_flags(jobs, applied_keys, saved_keys):
     out = []
     for job in jobs:
         item = dict(job)
+        if not item.get("region_code"):
+            rc, rt, rl, bg, fg = classify_region(item.get("location", ""))
+            item["region_code"] = rc
+            item["region_tier"] = rt
+            item["region_label"] = rl
+            item["badge_bg"] = bg
+            item["badge_fg"] = fg
         key = f"{str(item.get('title', '')).strip().lower()}|{str(item.get('company', '')).strip().lower()}"
         item["job_key"] = key
         item["is_applied"] = key in applied_keys
         item["is_saved"] = key in saved_keys
         out.append(item)
+    return out
+
+
+def _apply_ui_filters(jobs, region="all", job_type="all", min_match=0):
+    reg = (region or "all").strip().lower()
+    jtype = (job_type or "all").strip().lower()
+    try:
+        mm = max(0, int(min_match or 0))
+    except ValueError:
+        mm = 0
+
+    out = []
+    for j in jobs:
+        if reg in {"karnataka", "india", "global"} and j.get("region_code") != reg:
+            continue
+        if jtype and jtype != "all":
+            item_type = str(j.get("job_type") or "").strip().lower()
+            if jtype not in item_type:
+                continue
+        if int(j.get("match_score") or 0) < mm:
+            continue
+        out.append(j)
     return out
 
 
@@ -62,18 +101,27 @@ def find_jobs():
     user_id = session["user_id"]
     query = request.args.get("q", "").strip()
     location = request.args.get("location", "").strip()
+    region = request.args.get("region", "all").strip().lower()
+    job_type = request.args.get("job_type", "all").strip()
+    min_match = request.args.get("min_match", "0").strip()
 
     skills = _load_latest_user_skills(user_id)
     ranked = calculate_job_matches(skills, fetch_jobs(query=query, location=location))
+    prioritized = _sort_karnataka_first(ranked)
+    filtered = _apply_ui_filters(prioritized, region=region, job_type=job_type, min_match=min_match)
     applied_keys, saved_keys = _get_user_action_keys(user_id)
 
     return render_template(
         "jobs.html",
         full_name=session.get("full_name", "Student"),
-        jobs=_attach_flags(ranked, applied_keys, saved_keys),
+        avatar_url=session.get("avatar_url", ""),
+        jobs=_attach_flags(filtered, applied_keys, saved_keys),
         user_skills=skills,
         query=query,
         location=location,
+        region=region,
+        job_type=job_type,
+        min_match=min_match,
         page_title="Find Jobs"
     )
 
@@ -87,16 +135,20 @@ def recommended_jobs():
     skills = _load_latest_user_skills(user_id)
     all_ranked = calculate_job_matches(skills, fetch_jobs())
     strong = [j for j in all_ranked if j["match_score"] >= 40]
-    ranked = strong if strong else all_ranked
+    ranked = _sort_karnataka_first(strong if strong else all_ranked)
     applied_keys, saved_keys = _get_user_action_keys(user_id)
 
     return render_template(
         "jobs.html",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
         jobs=_attach_flags(ranked, applied_keys, saved_keys),
         user_skills=skills,
         query="",
         location="",
+        region="all",
+        job_type="all",
+        min_match="0",
         page_title="Recommended Jobs"
     )
 
@@ -124,16 +176,23 @@ def applied_jobs():
 
     jobs = []
     for r in rows:
+        loc_val = r.get("location") or "India"
+        rc, rt, rl, bg, fg = classify_region(loc_val)
         jobs.append({
             "job_key": r["job_key"],
             "title": r["title"],
             "company": r["company"],
-            "location": r["location"] or "India",
-            "job_type": r["job_type"] or "Full Time",
+            "location": loc_val,
+            "region_code": rc,
+            "region_tier": rt,
+            "region_label": rl,
+            "badge_bg": bg,
+            "badge_fg": fg,
+            "job_type": r.get("job_type") or "Full Time",
             "package_lpa": "",
-            "skills": [s.strip() for s in str(r["skills"] or "").split(",") if s.strip()],
-            "apply_url": r["apply_url"] or "#",
-            "match_score": r["match_score"] or 0,
+            "skills": [s.strip() for s in str(r.get("skills") or "").split(",") if s.strip()],
+            "apply_url": r.get("apply_url") or "#",
+            "match_score": r.get("match_score") or 0,
             "missing_skills": [],
             "source": "Tracked Application",
             "is_applied": True,
@@ -143,10 +202,14 @@ def applied_jobs():
     return render_template(
         "jobs.html",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
         jobs=jobs,
         user_skills=skills,
         query="",
         location="",
+        region="all",
+        job_type="all",
+        min_match="0",
         page_title="Applied Jobs"
     )
 
@@ -174,16 +237,23 @@ def saved_jobs():
 
     jobs = []
     for r in rows:
+        loc_val = r.get("location") or "India"
+        rc, rt, rl, bg, fg = classify_region(loc_val)
         jobs.append({
             "job_key": r["job_key"],
             "title": r["title"],
             "company": r["company"],
-            "location": r["location"] or "India",
-            "job_type": r["job_type"] or "Full Time",
+            "location": loc_val,
+            "region_code": rc,
+            "region_tier": rt,
+            "region_label": rl,
+            "badge_bg": bg,
+            "badge_fg": fg,
+            "job_type": r.get("job_type") or "Full Time",
             "package_lpa": "",
-            "skills": [s.strip() for s in str(r["skills"] or "").split(",") if s.strip()],
-            "apply_url": r["apply_url"] or "#",
-            "match_score": r["match_score"] or 0,
+            "skills": [s.strip() for s in str(r.get("skills") or "").split(",") if s.strip()],
+            "apply_url": r.get("apply_url") or "#",
+            "match_score": r.get("match_score") or 0,
             "missing_skills": [],
             "source": "Saved Role",
             "is_applied": r["job_key"] in applied_keys,
@@ -193,10 +263,14 @@ def saved_jobs():
     return render_template(
         "jobs.html",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
         jobs=jobs,
         user_skills=skills,
         query="",
         location="",
+        region="all",
+        job_type="all",
+        min_match="0",
         page_title="Saved Jobs"
     )
 
@@ -251,6 +325,7 @@ def post_job():
     return render_template(
         "post_job.html",
         full_name=session.get("full_name", "Student"),
+        avatar_url=session.get("avatar_url", ""),
         posted_jobs=posted_jobs,
         error=error,
         success=success
@@ -272,6 +347,28 @@ def delete_job(job_id):
         conn.close()
 
     return redirect(url_for("jobs.post_job"))
+
+
+def _insert_action_if_missing(conn, cursor, params):
+    if conn.is_pg:
+        cursor.execute(
+            """
+            INSERT INTO job_actions
+            (user_id, job_key, title, company, location, job_type, skills, apply_url, match_score, action_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (user_id, job_key, action_type) DO NOTHING
+            """,
+            params
+        )
+    else:
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO job_actions
+            (user_id, job_key, title, company, location, job_type, skills, apply_url, match_score, action_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            params
+        )
 
 
 @jobs_bp.route("/jobs/action", methods=["POST"])
@@ -301,12 +398,9 @@ def record_job_action():
                     (user_id, job_key)
                 )
             elif action_type in {"applied", "saved"}:
-                cursor.execute(
-                    """
-                    INSERT OR IGNORE INTO job_actions
-                    (user_id, job_key, title, company, location, job_type, skills, apply_url, match_score, action_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
+                _insert_action_if_missing(
+                    conn,
+                    cursor,
                     (user_id, job_key, title, company, location, job_type, skills, apply_url, match_score, action_type)
                 )
             conn.commit()
