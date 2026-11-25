@@ -9,11 +9,13 @@ from database import get_db_connection
 auth_bp = Blueprint("auth", __name__)
 oauth = OAuth()
 google = None
+linkedin = None
 
 
 def init_oauth(app):
-    global google
+    global google, linkedin
     oauth.init_app(app)
+
     google = oauth.register(
         name="google",
         client_id=os.environ.get("GOOGLE_CLIENT_ID"),
@@ -22,9 +24,48 @@ def init_oauth(app):
         client_kwargs={"scope": "openid email profile"},
     )
 
+    linkedin = oauth.register(
+        name="linkedin",
+        client_id=os.environ.get("LINKEDIN_CLIENT_ID"),
+        client_secret=os.environ.get("LINKEDIN_CLIENT_SECRET"),
+        server_metadata_url="https://www.linkedin.com/oauth/.well-known/openid-configuration",
+        client_kwargs={
+            "scope": "openid profile email",
+            "token_endpoint_auth_method": "client_secret_post",
+        },
+    )
+
 
 def _hash_password(raw_password):
     return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
+
+
+def _login_or_create_oauth_user(email, full_name):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+
+        if not user:
+            random_secret = secrets.token_urlsafe(24)
+            cursor.execute(
+                "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)",
+                (full_name, email, _hash_password(random_secret))
+            )
+            conn.commit()
+            cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
+            user = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not user:
+        return False
+
+    session["user_id"] = user["id"]
+    session["full_name"] = user["full_name"]
+    return True
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
@@ -101,9 +142,7 @@ def google_login():
 def google_callback():
     try:
         token = google.authorize_access_token()
-        userinfo = token.get("userinfo")
-        if not userinfo:
-            userinfo = google.userinfo()
+        userinfo = token.get("userinfo") or google.userinfo()
     except Exception:
         return render_template("login.html", error="Google sign-in was cancelled or failed. Please try again.")
 
@@ -112,31 +151,41 @@ def google_callback():
         return render_template("login.html", error="Could not retrieve email from your Google account.")
 
     full_name = (userinfo.get("name") or email.split("@")[0]).strip()
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
-        user = cursor.fetchone()
-
-        if not user:
-            random_secret = secrets.token_urlsafe(24)
-            cursor.execute(
-                "INSERT INTO users (full_name, email, password) VALUES (?, ?, ?)",
-                (full_name, email, _hash_password(random_secret))
-            )
-            conn.commit()
-            cursor.execute("SELECT id, full_name, email FROM users WHERE email = ?", (email,))
-            user = cursor.fetchone()
-    finally:
-        cursor.close()
-        conn.close()
-
-    if not user:
+    if not _login_or_create_oauth_user(email, full_name):
         return render_template("login.html", error="Could not complete Google login.")
 
-    session["user_id"] = user["id"]
-    session["full_name"] = user["full_name"]
+    return redirect(url_for("dashboard"))
+
+
+@auth_bp.route("/auth/linkedin")
+def linkedin_login():
+    if not os.environ.get("LINKEDIN_CLIENT_ID") or not os.environ.get("LINKEDIN_CLIENT_SECRET"):
+        return render_template("login.html", error="LinkedIn login is not configured on the server yet.")
+    redirect_uri = url_for("auth.linkedin_callback", _external=True)
+    return linkedin.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/auth/linkedin/callback")
+def linkedin_callback():
+    try:
+        token = linkedin.authorize_access_token()
+        userinfo = token.get("userinfo") or linkedin.userinfo()
+    except Exception:
+        return render_template("login.html", error="LinkedIn sign-in was cancelled or failed. Please try again.")
+
+    email = (userinfo.get("email") or "").strip().lower()
+    if not email:
+        return render_template("login.html", error="Could not retrieve email from your LinkedIn account.")
+
+    full_name = (
+        userinfo.get("name")
+        or f"{userinfo.get('given_name', '')} {userinfo.get('family_name', '')}".strip()
+        or email.split("@")[0]
+    ).strip()
+
+    if not _login_or_create_oauth_user(email, full_name):
+        return render_template("login.html", error="Could not complete LinkedIn login.")
+
     return redirect(url_for("dashboard"))
 
 
