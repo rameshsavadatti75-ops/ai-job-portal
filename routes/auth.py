@@ -4,6 +4,7 @@ import secrets
 import smtplib
 import sqlite3
 from email.message import EmailMessage
+import requests
 from authlib.integrations.flask_client import OAuth
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, session
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -49,42 +50,64 @@ def _get_serializer():
 
 
 def _send_reset_email(recipient_email, reset_url):
+    mail_from = (os.environ.get("MAIL_FROM") or os.environ.get("MAIL_USERNAME") or "").strip()
+    brevo_api_key = (os.environ.get("BREVO_API_KEY") or "").strip()
+
+    html_body = f"""
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 520px;">
+        <h2 style="color: #1d4ed8; margin-bottom: 8px;">Password Reset Request</h2>
+        <p>Hello,</p>
+        <p>We received a request to reset your password for <strong>Alva's College Student Career Portal</strong>.</p>
+        <p style="margin: 20px 0;">
+            <a href="{reset_url}" style="background: #1d63dc; color: #ffffff; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                Reset Password
+            </a>
+        </p>
+        <p style="font-size: 13px; color: #475569;">This link expires in 30 minutes. If you didn't request this, ignore this email.</p>
+    </div>
+    """
+
+    # 1. HTTPS API via Brevo (works on Render Free Tier where SMTP ports are blocked)
+    if brevo_api_key:
+        if not mail_from:
+            return False, "Set MAIL_FROM in Render to your verified Brevo sender email."
+        try:
+            resp = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "api-key": brevo_api_key,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json={
+                    "sender": {"name": "Alva's Career Portal", "email": mail_from},
+                    "to": [{"email": recipient_email}],
+                    "subject": "Reset Your Password - Alva's College Student Career Portal",
+                    "htmlContent": html_body,
+                },
+                timeout=15,
+            )
+            if resp.status_code in (200, 201, 202):
+                return True, None
+            return False, f"Email service error ({resp.status_code}): {resp.text[:180]}"
+        except Exception as exc:
+            return False, f"Could not send reset email via API: {exc}"
+
+    # 2. Fallback to standard SMTP (works locally)
     mail_username = (os.environ.get("MAIL_USERNAME") or "").strip()
     mail_password = (os.environ.get("MAIL_PASSWORD") or "").strip()
     mail_server = (os.environ.get("MAIL_SERVER") or "smtp.gmail.com").strip()
     mail_port = int(os.environ.get("MAIL_PORT") or "587")
-    mail_from = (os.environ.get("MAIL_FROM") or mail_username).strip()
 
     if not mail_username or not mail_password:
-        return False, "Email sender is not configured yet (set MAIL_USERNAME and MAIL_PASSWORD in Render)."
+        return False, "Set BREVO_API_KEY (recommended on Render) or MAIL_USERNAME/MAIL_PASSWORD in Environment."
 
     msg = EmailMessage()
     msg["Subject"] = "Reset Your Password - Alva's College Student Career Portal"
-    msg["From"] = mail_from
+    msg["From"] = mail_from or mail_username
     msg["To"] = recipient_email
-    msg.set_content(
-        f"Hello,\n\n"
-        f"We received a request to reset your password for Alva's College Student Career Portal.\n\n"
-        f"Click the link below to set a new password (valid for 30 minutes):\n"
-        f"{reset_url}\n\n"
-        f"If you did not request this, you can safely ignore this email.\n"
-    )
-    msg.add_alternative(
-        f"""
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0f172a; max-width: 520px;">
-            <h2 style="color: #1d4ed8; margin-bottom: 8px;">Password Reset Request</h2>
-            <p>Hello,</p>
-            <p>We received a request to reset your password for <strong>Alva's College Student Career Portal</strong>.</p>
-            <p style="margin: 20px 0;">
-                <a href="{reset_url}" style="background: #1d63dc; color: #ffffff; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
-                    Reset Password
-                </a>
-            </p>
-            <p style="font-size: 13px; color: #475569;">This link expires in 30 minutes. If you didn't request this, ignore this email.</p>
-        </div>
-        """,
-        subtype="html",
-    )
+    msg.set_content(f"Reset your password (valid 30 mins): {reset_url}")
+    msg.add_alternative(html_body, subtype="html")
 
     try:
         if mail_port == 465:
@@ -99,6 +122,10 @@ def _send_reset_email(recipient_email, reset_url):
                 server.login(mail_username, mail_password)
                 server.send_message(msg)
         return True, None
+    except OSError as exc:
+        if getattr(exc, "errno", None) == 101:
+            return False, "Render blocks SMTP ports (587/465). Add BREVO_API_KEY in Render Environment to send via HTTPS."
+        return False, f"Could not send reset email: {exc}"
     except Exception as exc:
         return False, f"Could not send reset email: {exc}"
 
