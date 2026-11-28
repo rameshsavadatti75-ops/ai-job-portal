@@ -133,12 +133,16 @@ def init_db():
                 password TEXT NOT NULL,
                 avatar_url TEXT,
                 course_info TEXT DEFAULT 'Alva''s College Student',
+                college_name TEXT,
+                register_number TEXT,
                 created_at {ts_col}
             )
         """)
 
         _ensure_column_exists(cursor, conn.is_pg, "users", "avatar_url", "TEXT")
         _ensure_column_exists(cursor, conn.is_pg, "users", "course_info", "TEXT DEFAULT 'Alva''s College Student'")
+        _ensure_column_exists(cursor, conn.is_pg, "users", "college_name", "TEXT")
+        _ensure_column_exists(cursor, conn.is_pg, "users", "register_number", "TEXT")
 
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS resumes (
